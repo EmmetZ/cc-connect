@@ -135,6 +135,14 @@ const (
 	MsgNoToolsAllowed            MsgKey = "no_tools_allowed"
 	MsgCurrentTools              MsgKey = "current_tools"
 	MsgCurrentSession            MsgKey = "current_session"
+	MsgObserveUsage              MsgKey = "observe_usage"
+	MsgObserveUnsupported        MsgKey = "observe_unsupported"
+	MsgObserveStarted            MsgKey = "observe_started"
+	MsgObserveAlready            MsgKey = "observe_already"
+	MsgObserveAlreadyComplete    MsgKey = "observe_already_complete"
+	MsgObserveStatusActive       MsgKey = "observe_status_active"
+	MsgObserveStatusInactive     MsgKey = "observe_status_inactive"
+	MsgObserveStopped            MsgKey = "observe_stopped"
 	MsgToolAuthNotSupported      MsgKey = "tool_auth_not_supported"
 	MsgToolAllowFailed           MsgKey = "tool_allow_failed"
 	MsgToolAllowedNew            MsgKey = "tool_allowed_new"
@@ -392,10 +400,10 @@ const (
 	MsgAliasNotFound   MsgKey = "alias_not_found"
 	MsgAliasUsage      MsgKey = "alias_usage"
 
-	MsgNewSessionCreated     MsgKey = "new_session_created"
-	MsgNewSessionCreatedName MsgKey = "new_session_created_name"
-	MsgSessionAutoResetIdle     MsgKey = "session_auto_reset_idle"
-	MsgSessionClosingGraceful   MsgKey = "session_closing_graceful"
+	MsgNewSessionCreated      MsgKey = "new_session_created"
+	MsgNewSessionCreatedName  MsgKey = "new_session_created_name"
+	MsgSessionAutoResetIdle   MsgKey = "session_auto_reset_idle"
+	MsgSessionClosingGraceful MsgKey = "session_closing_graceful"
 
 	MsgDeleteUsage              MsgKey = "delete_usage"
 	MsgDeleteSuccess            MsgKey = "delete_success"
@@ -464,6 +472,7 @@ const (
 	MsgBuiltinCmdDelete    MsgKey = "delete"
 	MsgBuiltinCmdName      MsgKey = "name"
 	MsgBuiltinCmdCurrent   MsgKey = "current"
+	MsgBuiltinCmdObserve   MsgKey = "observe"
 	MsgBuiltinCmdHistory   MsgKey = "history"
 	MsgBuiltinCmdProvider  MsgKey = "provider"
 	MsgBuiltinCmdMemory    MsgKey = "memory"
@@ -492,8 +501,8 @@ const (
 	MsgBuiltinCmdDir       MsgKey = "dir"
 	MsgBuiltinCmdDiff      MsgKey = "diff"
 
-	MsgDiffEmpty           MsgKey = "diff_empty"
-	MsgDiffNoDiff2HTML     MsgKey = "diff_no_diff2html"
+	MsgDiffEmpty       MsgKey = "diff_empty"
+	MsgDiffNoDiff2HTML MsgKey = "diff_no_diff2html"
 
 	MsgDirChanged          MsgKey = "dir_changed"
 	MsgDirCurrent          MsgKey = "dir_current"
@@ -660,6 +669,62 @@ var messages = map[MsgKey]map[Language]string{
 		LangTraditionalChinese: "📌 目前工作階段\n名稱: %s\n工作階段 ID: %s\n本機訊息數: %d",
 		LangJapanese:           "📌 現在のセッション\n名前: %s\nセッション ID: %s\nローカルメッセージ数: %d",
 		LangSpanish:            "📌 Sesión actual\nNombre: %s\nID de sesión: %s\nMensajes locales: %d",
+	},
+	MsgObserveUsage: {
+		LangEnglish:            "Usage: `/observe`, `/observe status`, `/observe stop`",
+		LangChinese:            "用法: `/observe`、`/observe status`、`/observe stop`",
+		LangTraditionalChinese: "用法: `/observe`、`/observe status`、`/observe stop`",
+		LangJapanese:           "使い方: `/observe`、`/observe status`、`/observe stop`",
+		LangSpanish:            "Uso: `/observe`, `/observe status`, `/observe stop`",
+	},
+	MsgObserveUnsupported: {
+		LangEnglish:            "This agent does not support observing existing sessions.",
+		LangChinese:            "当前 Agent 不支持监听已有会话。",
+		LangTraditionalChinese: "當前 Agent 不支援監聽既有會話。",
+		LangJapanese:           "このエージェントは既存セッションの観察に対応していません。",
+		LangSpanish:            "Este agente no admite observar sesiones existentes.",
+	},
+	MsgObserveStarted: {
+		LangEnglish:            "Observing current session `%s`.\nSource: `%s`",
+		LangChinese:            "开始监听当前会话 `%s`。\n来源: `%s`",
+		LangTraditionalChinese: "開始監聽當前會話 `%s`。\n來源: `%s`",
+		LangJapanese:           "現在のセッション `%s` の観察を開始しました。\nソース: `%s`",
+		LangSpanish:            "Observando la sesión actual `%s`.\nOrigen: `%s`",
+	},
+	MsgObserveAlready: {
+		LangEnglish:            "Already observing session `%s`.",
+		LangChinese:            "已在监听会话 `%s`。",
+		LangTraditionalChinese: "已在監聽會話 `%s`。",
+		LangJapanese:           "セッション `%s` はすでに観察中です。",
+		LangSpanish:            "La sesión `%s` ya está siendo observada.",
+	},
+	MsgObserveAlreadyComplete: {
+		LangEnglish:            "Session `%s` is already complete. Nothing to observe.",
+		LangChinese:            "会话 `%s` 已完成，无需继续监听。",
+		LangTraditionalChinese: "會話 `%s` 已完成，無需繼續監聽。",
+		LangJapanese:           "セッション `%s` はすでに完了しています。観察する内容はありません。",
+		LangSpanish:            "La sesión `%s` ya terminó. No hay nada que observar.",
+	},
+	MsgObserveStatusActive: {
+		LangEnglish:            "Observing session `%s`.\nSource: `%s`\nSession key: `%s`\nStarted: `%s`",
+		LangChinese:            "正在监听会话 `%s`。\n来源: `%s`\nSession key: `%s`\n开始时间: `%s`",
+		LangTraditionalChinese: "正在監聽會話 `%s`。\n來源: `%s`\nSession key: `%s`\n開始時間: `%s`",
+		LangJapanese:           "セッション `%s` を観察中です。\nソース: `%s`\nSession key: `%s`\n開始時刻: `%s`",
+		LangSpanish:            "Observando la sesión `%s`.\nOrigen: `%s`\nSession key: `%s`\nInicio: `%s`",
+	},
+	MsgObserveStatusInactive: {
+		LangEnglish:            "No active observed session.",
+		LangChinese:            "当前没有正在监听的会话。",
+		LangTraditionalChinese: "當前沒有正在監聽的會話。",
+		LangJapanese:           "現在観察中のセッションはありません。",
+		LangSpanish:            "No hay ninguna sesión observada activa.",
+	},
+	MsgObserveStopped: {
+		LangEnglish:            "Stopped observing the current session.",
+		LangChinese:            "已停止监听当前会话。",
+		LangTraditionalChinese: "已停止監聽當前會話。",
+		LangJapanese:           "現在のセッションの観察を停止しました。",
+		LangSpanish:            "Se detuvo la observación de la sesión actual.",
 	},
 	MsgToolAuthNotSupported: {
 		LangEnglish:            "This agent does not support tool authorization.",
@@ -838,6 +903,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <number>|1,2,3|3-7|1,3-5,8\n  Delete sessions by list number(s)\n\n" +
 			"/name [number] <text>\n  Name a session for easy identification\n\n" +
 			"/current\n  Show current active session\n\n" +
+			"/observe [status|stop]\n  Observe current active session\n\n" +
 			"/history [n]\n  Show last n messages (default 10)\n\n" +
 			"/provider [list|add|remove|switch|clear]\n  Manage API providers\n\n" +
 			"/memory [add|global|global add]\n  View/edit agent memory files\n\n" +
@@ -881,6 +947,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <序号>|1,2,3|3-7|1,3-5,8\n  按列表序号批量/单个删除会话\n\n" +
 			"/name [序号] <名称>\n  给会话命名，方便识别\n\n" +
 			"/current\n  查看当前活跃会话\n\n" +
+			"/observe [status|stop]\n  监听当前活跃会话\n\n" +
 			"/history [n]\n  查看最近 n 条消息（默认 10）\n\n" +
 			"/provider [list|add|remove|switch|clear]\n  管理 API Provider\n\n" +
 			"/memory [add|global|global add]\n  查看/编辑 Agent 记忆文件\n\n" +
@@ -924,6 +991,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <序號>|1,2,3|3-7|1,3-5,8\n  按列表序號批量/單筆刪除會話\n\n" +
 			"/name [序號] <名稱>\n  為會話命名，方便辨識\n\n" +
 			"/current\n  查看當前活躍會話\n\n" +
+			"/observe [status|stop]\n  監聽當前活躍會話\n\n" +
 			"/history [n]\n  查看最近 n 條訊息（預設 10）\n\n" +
 			"/provider [list|add|remove|switch|clear]\n  管理 API Provider\n\n" +
 			"/memory [add|global|global add]\n  查看/編輯 Agent 記憶檔案\n\n" +
@@ -965,6 +1033,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <番号>|1,2,3|3-7|1,3-5,8\n  リスト番号でセッションを単体/複数削除\n\n" +
 			"/name [番号] <名前>\n  セッションに名前を付ける\n\n" +
 			"/current\n  現在のアクティブセッションを表示\n\n" +
+			"/observe [status|stop]\n  現在のアクティブセッションを観察\n\n" +
 			"/history [n]\n  直近 n 件のメッセージを表示（デフォルト 10）\n\n" +
 			"/provider [list|add|remove|switch|clear]\n  API プロバイダ管理\n\n" +
 			"/memory [add|global|global add]\n  エージェントメモリの表示/編集\n\n" +
@@ -1006,6 +1075,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <número>|1,2,3|3-7|1,3-5,8\n  Eliminar una o varias sesiones por número de lista\n\n" +
 			"/name [número] <texto>\n  Nombrar una sesión para fácil identificación\n\n" +
 			"/current\n  Mostrar sesión activa actual\n\n" +
+			"/observe [status|stop]\n  Observar la sesión activa actual\n\n" +
 			"/history [n]\n  Mostrar últimos n mensajes (por defecto 10)\n\n" +
 			"/provider [list|add|remove|switch|clear]\n  Gestionar proveedores API\n\n" +
 			"/memory [add|global|global add]\n  Ver/editar archivos de memoria del agente\n\n" +
@@ -1057,6 +1127,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <number>|1,2,3|3-7|1,3-5,8 — Delete session(s)\n" +
 			"/name [number] <text> — Name a session\n" +
 			"/current — Show active session\n" +
+			"/observe [status|stop] — Observe current session\n" +
 			"/history [n] — Show last n messages",
 		LangChinese: "**会话管理**\n" +
 			"/new [名称] — 创建新会话\n" +
@@ -1066,6 +1137,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <序号>|1,2,3|3-7|1,3-5,8 — 删除会话\n" +
 			"/name [序号] <名称> — 命名会话\n" +
 			"/current — 查看当前会话\n" +
+			"/observe [status|stop] — 监听当前会话\n" +
 			"/history [n] — 查看最近 n 条消息",
 		LangTraditionalChinese: "**會話管理**\n" +
 			"/new [名稱] — 建立新會話\n" +
@@ -1075,6 +1147,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <序號>|1,2,3|3-7|1,3-5,8 — 刪除會話\n" +
 			"/name [序號] <名稱> — 命名會話\n" +
 			"/current — 查看當前會話\n" +
+			"/observe [status|stop] — 監聽當前會話\n" +
 			"/history [n] — 查看最近 n 條訊息",
 		LangJapanese: "**セッション管理**\n" +
 			"/new [名前] — 新しいセッションを開始\n" +
@@ -1084,6 +1157,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <番号>|1,2,3|3-7|1,3-5,8 — セッション削除\n" +
 			"/name [番号] <名前> — セッションに名前を付ける\n" +
 			"/current — 現在のセッションを表示\n" +
+			"/observe [status|stop] — 現在のセッションを観察\n" +
 			"/history [n] — 直近 n 件のメッセージを表示",
 		LangSpanish: "**Gestión de sesiones**\n" +
 			"/new [nombre] — Iniciar nueva sesión\n" +
@@ -1093,6 +1167,7 @@ var messages = map[MsgKey]map[Language]string{
 			"/delete <número>|1,2,3|3-7|1,3-5,8 — Eliminar sesión(es)\n" +
 			"/name [número] <texto> — Nombrar sesión\n" +
 			"/current — Mostrar sesión activa\n" +
+			"/observe [status|stop] — Observar sesión actual\n" +
 			"/history [n] — Mostrar últimos n mensajes",
 	},
 	MsgHelpAgentSection: {
@@ -3122,6 +3197,13 @@ var messages = map[MsgKey]map[Language]string{
 		LangTraditionalChinese: "查看當前活躍會話",
 		LangJapanese:           "現在のアクティブセッションを表示",
 		LangSpanish:            "Mostrar sesión activa actual",
+	},
+	MsgBuiltinCmdObserve: {
+		LangEnglish:            "Observe current session, arg: [status|stop]",
+		LangChinese:            "监听当前会话，参数: [status|stop]",
+		LangTraditionalChinese: "監聽當前會話，參數: [status|stop]",
+		LangJapanese:           "現在のセッションを観察、引数: [status|stop]",
+		LangSpanish:            "Observar sesión actual, arg: [status|stop]",
 	},
 	MsgBuiltinCmdHistory: {
 		LangEnglish:            "Show last n messages, arg: [n] (default 10)",

@@ -22,16 +22,10 @@ func listCodexSessions(workDir string) ([]core.AgentSessionInfo, error) {
 		absWorkDir = workDir
 	}
 
-	homeDir, err := os.UserHomeDir()
+	sessionsDir, err := codexSessionsDir()
 	if err != nil {
 		return nil, err
 	}
-
-	codexHome := os.Getenv("CODEX_HOME")
-	if codexHome == "" {
-		codexHome = filepath.Join(homeDir, ".codex")
-	}
-	sessionsDir := filepath.Join(codexHome, "sessions")
 
 	var files []string
 	_ = filepath.Walk(sessionsDir, func(path string, info os.FileInfo, err error) error {
@@ -162,15 +156,10 @@ func parseCodexSessionFile(path, filterCwd string) *core.AgentSessionInfo {
 
 // findSessionFile locates the JSONL transcript for a given session ID.
 func findSessionFile(sessionID string) string {
-	homeDir, err := os.UserHomeDir()
+	sessionsDir, err := codexSessionsDir()
 	if err != nil {
 		return ""
 	}
-	codexHome := os.Getenv("CODEX_HOME")
-	if codexHome == "" {
-		codexHome = filepath.Join(homeDir, ".codex")
-	}
-	sessionsDir := filepath.Join(codexHome, "sessions")
 
 	var found string
 	_ = filepath.Walk(sessionsDir, func(path string, info os.FileInfo, err error) error {

@@ -211,9 +211,13 @@ type Engine struct {
 
 	// Terminal observation (--observe)
 	observeEnabled    bool
-	observeProjectDir string             // ~/.claude/projects/{projectKey}
-	observeSessionKey string             // e.g. "slack:C123:U456" — target for forwarding
+	observeProjectDir string // ~/.claude/projects/{projectKey}
+	observeSessionKey string // e.g. "slack:C123:U456" — target for forwarding
 	observeCancel     context.CancelFunc
+
+	// /observe session observation
+	sessionObserveMu    sync.Mutex
+	sessionObserveState *observeState
 
 	// Interactive agent session management
 	interactiveMu     sync.Mutex
@@ -1167,6 +1171,7 @@ func (e *Engine) Stop() error {
 	if e.observeCancel != nil {
 		e.observeCancel()
 	}
+	e.stopObservedSession(nil)
 
 	// Stop platforms after cancellation so they can unwind against the closed context.
 	var errs []error
@@ -3062,6 +3067,7 @@ var builtinCommands = []struct {
 	{[]string{"switch"}, "switch"},
 	{[]string{"name", "rename"}, "name"},
 	{[]string{"current"}, "current"},
+	{[]string{"observe", "obs"}, "observe"},
 	{[]string{"status"}, "status"},
 	{[]string{"usage", "quota"}, "usage"},
 	{[]string{"history"}, "history"},
@@ -3222,6 +3228,8 @@ func (e *Engine) handleCommand(p Platform, msg *Message, raw string) bool {
 		e.cmdName(p, msg, args)
 	case "current":
 		e.cmdCurrent(p, msg)
+	case "observe":
+		e.cmdObserve(p, msg, args)
 	case "status":
 		e.cmdStatus(p, msg)
 	case "usage":
@@ -5058,6 +5066,7 @@ func helpCardGroups() []helpCardGroup {
 				{command: "/new", action: "act:/new"},
 				{command: "/list", action: "nav:/list"},
 				{command: "/current", action: "nav:/current"},
+				{command: "/observe", action: "cmd:/observe"},
 				{command: "/switch", action: "nav:/list"},
 				{command: "/search", action: "cmd:/search"},
 				{command: "/history", action: "nav:/history"},

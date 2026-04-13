@@ -17,6 +17,9 @@ type Platform interface {
 // ErrNotSupported indicates a platform doesn't support a particular operation.
 var ErrNotSupported = errors.New("operation not supported by this platform")
 
+// ErrObservedSessionComplete indicates the observed session has no more events.
+var ErrObservedSessionComplete = errors.New("observed session already complete")
+
 // ReplyContextReconstructor is an optional interface for platforms that can
 // recreate a reply context from a session key. This is needed for cron jobs
 // to send messages to users without an incoming message.
@@ -219,6 +222,19 @@ type Agent interface {
 	// ListSessions returns sessions known to the agent backend.
 	ListSessions(ctx context.Context) ([]AgentSessionInfo, error)
 	Stop() error
+}
+
+// SessionObserver is an optional interface for agents that support observing
+// a session transcript without attaching to the interactive process.
+type SessionObserver interface {
+	ObserveSession(ctx context.Context, sessionID string) (ObservedSession, error)
+}
+
+// ObservedSession streams events from an existing session transcript.
+type ObservedSession interface {
+	Events() <-chan Event
+	SourcePath() string
+	Close() error
 }
 
 // AgentSession represents a running interactive agent session with a persistent process.
