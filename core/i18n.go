@@ -179,7 +179,9 @@ const (
 	MsgListEmpty                 MsgKey = "list_empty"
 	MsgListMore                  MsgKey = "list_more"
 	MsgListPageHint              MsgKey = "list_page_hint"
+	MsgListPageHintAll           MsgKey = "list_page_hint_all"
 	MsgListSwitchHint            MsgKey = "list_switch_hint"
+	MsgListSwitchHintAll         MsgKey = "list_switch_hint_all"
 	MsgListError                 MsgKey = "list_error"
 	MsgHistoryEmpty              MsgKey = "history_empty"
 	MsgNameUsage                 MsgKey = "name_usage"
@@ -425,6 +427,7 @@ const (
 	MsgSwitchSuccess   MsgKey = "switch_success"
 	MsgSwitchNoMatch   MsgKey = "switch_no_match"
 	MsgSwitchNoSession MsgKey = "switch_no_session"
+	MsgSwitchUsage     MsgKey = "switch_usage"
 
 	MsgCommandTimeout MsgKey = "command_timeout"
 
@@ -897,9 +900,9 @@ var messages = map[MsgKey]map[Language]string{
 	MsgHelp: {
 		LangEnglish: "📖 Available Commands\n\n" +
 			"/new [name]\n  Start a new session\n\n" +
-			"/list\n  List agent sessions\n\n" +
+			"/list [all] [page]\n  List agent sessions (`all` includes external terminal sessions)\n\n" +
 			"/search <keyword>\n  Search sessions by name or ID\n\n" +
-			"/switch <number>\n  Resume a session by its list number\n\n" +
+			"/switch [all] <number>\n  Resume a session by its list number (`all` can target external terminal sessions)\n\n" +
 			"/delete <number>|1,2,3|3-7|1,3-5,8\n  Delete sessions by list number(s)\n\n" +
 			"/name [number] <text>\n  Name a session for easy identification\n\n" +
 			"/current\n  Show current active session\n\n" +
@@ -941,9 +944,9 @@ var messages = map[MsgKey]map[Language]string{
 			"Permission modes: default / edit / plan / yolo",
 		LangChinese: "📖 可用命令\n\n" +
 			"/new [名称]\n  创建新会话\n\n" +
-			"/list\n  列出 Agent 会话列表\n\n" +
+			"/list [all] [页码]\n  列出 Agent 会话列表（`all` 包含终端中创建的外部会话）\n\n" +
 			"/search <关键词>\n  搜索会话名称或 ID\n\n" +
-			"/switch <序号>\n  按列表序号切换会话\n\n" +
+			"/switch [all] <序号>\n  按列表序号切换会话（`all` 可切到终端外部会话）\n\n" +
 			"/delete <序号>|1,2,3|3-7|1,3-5,8\n  按列表序号批量/单个删除会话\n\n" +
 			"/name [序号] <名称>\n  给会话命名，方便识别\n\n" +
 			"/current\n  查看当前活跃会话\n\n" +
@@ -985,9 +988,9 @@ var messages = map[MsgKey]map[Language]string{
 			"权限模式：default / edit / plan / yolo",
 		LangTraditionalChinese: "📖 可用命令\n\n" +
 			"/new [名稱]\n  建立新會話\n\n" +
-			"/list\n  列出 Agent 會話列表\n\n" +
+			"/list [all] [頁碼]\n  列出 Agent 會話列表（`all` 包含終端中建立的外部會話）\n\n" +
 			"/search <關鍵詞>\n  搜尋會話名稱或 ID\n\n" +
-			"/switch <序號>\n  按列表序號切換會話\n\n" +
+			"/switch [all] <序號>\n  按列表序號切換會話（`all` 可切到終端外部會話）\n\n" +
 			"/delete <序號>|1,2,3|3-7|1,3-5,8\n  按列表序號批量/單筆刪除會話\n\n" +
 			"/name [序號] <名稱>\n  為會話命名，方便辨識\n\n" +
 			"/current\n  查看當前活躍會話\n\n" +
@@ -1028,8 +1031,8 @@ var messages = map[MsgKey]map[Language]string{
 			"權限模式：default / edit / plan / yolo",
 		LangJapanese: "📖 利用可能なコマンド\n\n" +
 			"/new [名前]\n  新しいセッションを開始\n\n" +
-			"/list\n  エージェントセッション一覧\n\n" +
-			"/switch <番号>\n  リスト番号でセッションを切り替え\n\n" +
+			"/list [all] [ページ]\n  エージェントセッション一覧（`all` で外部ターミナルのセッションも表示）\n\n" +
+			"/switch [all] <番号>\n  リスト番号でセッションを切り替え（`all` で外部ターミナルのセッションも対象）\n\n" +
 			"/delete <番号>|1,2,3|3-7|1,3-5,8\n  リスト番号でセッションを単体/複数削除\n\n" +
 			"/name [番号] <名前>\n  セッションに名前を付ける\n\n" +
 			"/current\n  現在のアクティブセッションを表示\n\n" +
@@ -1070,8 +1073,8 @@ var messages = map[MsgKey]map[Language]string{
 			"権限モード: default / edit / plan / yolo",
 		LangSpanish: "📖 Comandos disponibles\n\n" +
 			"/new [nombre]\n  Iniciar una nueva sesión\n\n" +
-			"/list\n  Listar sesiones del agente\n\n" +
-			"/switch <número>\n  Reanudar sesión por su número en la lista\n\n" +
+			"/list [all] [página]\n  Listar sesiones del agente (`all` incluye sesiones externas del terminal)\n\n" +
+			"/switch [all] <número>\n  Reanudar una sesión por su número en la lista (`all` permite sesiones externas del terminal)\n\n" +
 			"/delete <número>|1,2,3|3-7|1,3-5,8\n  Eliminar una o varias sesiones por número de lista\n\n" +
 			"/name [número] <texto>\n  Nombrar una sesión para fácil identificación\n\n" +
 			"/current\n  Mostrar sesión activa actual\n\n" +
@@ -1121,9 +1124,9 @@ var messages = map[MsgKey]map[Language]string{
 	MsgHelpSessionSection: {
 		LangEnglish: "**Session Management**\n" +
 			"/new [name] — Start a new session\n" +
-			"/list — List agent sessions\n" +
+			"/list [all] [page] — List agent sessions\n" +
 			"/search <keyword> — Search sessions\n" +
-			"/switch <number> — Resume a session\n" +
+			"/switch [all] <number> — Resume a session\n" +
 			"/delete <number>|1,2,3|3-7|1,3-5,8 — Delete session(s)\n" +
 			"/name [number] <text> — Name a session\n" +
 			"/current — Show active session\n" +
@@ -1131,9 +1134,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/history [n] — Show last n messages",
 		LangChinese: "**会话管理**\n" +
 			"/new [名称] — 创建新会话\n" +
-			"/list — 列出会话列表\n" +
+			"/list [all] [页码] — 列出会话列表\n" +
 			"/search <关键词> — 搜索会话\n" +
-			"/switch <序号> — 切换会话\n" +
+			"/switch [all] <序号> — 切换会话\n" +
 			"/delete <序号>|1,2,3|3-7|1,3-5,8 — 删除会话\n" +
 			"/name [序号] <名称> — 命名会话\n" +
 			"/current — 查看当前会话\n" +
@@ -1141,9 +1144,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/history [n] — 查看最近 n 条消息",
 		LangTraditionalChinese: "**會話管理**\n" +
 			"/new [名稱] — 建立新會話\n" +
-			"/list — 列出會話列表\n" +
+			"/list [all] [頁碼] — 列出會話列表\n" +
 			"/search <關鍵詞> — 搜尋會話\n" +
-			"/switch <序號> — 切換會話\n" +
+			"/switch [all] <序號> — 切換會話\n" +
 			"/delete <序號>|1,2,3|3-7|1,3-5,8 — 刪除會話\n" +
 			"/name [序號] <名稱> — 命名會話\n" +
 			"/current — 查看當前會話\n" +
@@ -1151,9 +1154,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/history [n] — 查看最近 n 條訊息",
 		LangJapanese: "**セッション管理**\n" +
 			"/new [名前] — 新しいセッションを開始\n" +
-			"/list — セッション一覧\n" +
+			"/list [all] [ページ] — セッション一覧\n" +
 			"/search <キーワード> — セッション検索\n" +
-			"/switch <番号> — セッション切り替え\n" +
+			"/switch [all] <番号> — セッション切り替え\n" +
 			"/delete <番号>|1,2,3|3-7|1,3-5,8 — セッション削除\n" +
 			"/name [番号] <名前> — セッションに名前を付ける\n" +
 			"/current — 現在のセッションを表示\n" +
@@ -1161,9 +1164,9 @@ var messages = map[MsgKey]map[Language]string{
 			"/history [n] — 直近 n 件のメッセージを表示",
 		LangSpanish: "**Gestión de sesiones**\n" +
 			"/new [nombre] — Iniciar nueva sesión\n" +
-			"/list — Listar sesiones\n" +
+			"/list [all] [página] — Listar sesiones\n" +
 			"/search <keyword> — Buscar sesiones\n" +
-			"/switch <número> — Reanudar sesión\n" +
+			"/switch [all] <número> — Reanudar sesión\n" +
 			"/delete <número>|1,2,3|3-7|1,3-5,8 — Eliminar sesión(es)\n" +
 			"/name [número] <texto> — Nombrar sesión\n" +
 			"/current — Mostrar sesión activa\n" +
@@ -1345,12 +1348,26 @@ var messages = map[MsgKey]map[Language]string{
 		LangJapanese:           "\n\n%d/%d ページ \n\n`/list <ページ>` で移動\n",
 		LangSpanish:            "\n\nPágina %d/%d \n\n`/list <página>` para más\n",
 	},
+	MsgListPageHintAll: {
+		LangEnglish:            "\n\nPage %d/%d \n\n`/list all <page>` for more\n",
+		LangChinese:            "\n\n第 %d/%d 页 \n\n`/list all <页码>` 翻页\n",
+		LangTraditionalChinese: "\n\n第 %d/%d 頁 \n\n`/list all <頁碼>` 翻頁\n",
+		LangJapanese:           "\n\n%d/%d ページ \n\n`/list all <ページ>` で移動\n",
+		LangSpanish:            "\n\nPágina %d/%d \n\n`/list all <página>` para más\n",
+	},
 	MsgListSwitchHint: {
 		LangEnglish:            "\n`/switch <number>` to switch session",
 		LangChinese:            "\n`/switch <序号>` 切换会话",
 		LangTraditionalChinese: "\n`/switch <序號>` 切換會話",
 		LangJapanese:           "\n`/switch <番号>` でセッション切替",
 		LangSpanish:            "\n`/switch <número>` para cambiar sesión",
+	},
+	MsgListSwitchHintAll: {
+		LangEnglish:            "\n`/switch all <number>` to switch session",
+		LangChinese:            "\n`/switch all <序号>` 切换会话",
+		LangTraditionalChinese: "\n`/switch all <序號>` 切換會話",
+		LangJapanese:           "\n`/switch all <番号>` でセッション切替",
+		LangSpanish:            "\n`/switch all <número>` para cambiar sesión",
 	},
 	MsgListError: {
 		LangEnglish:            "❌ Failed to list sessions: %v",
@@ -2836,6 +2853,13 @@ var messages = map[MsgKey]map[Language]string{
 		LangJapanese:           "❌ セッション #%d が見つかりません",
 		LangSpanish:            "❌ No hay sesión #%d",
 	},
+	MsgSwitchUsage: {
+		LangEnglish:            "Usage: /switch <number | id_prefix | name>\n   or: /switch all <number | id_prefix | name>",
+		LangChinese:            "用法：/switch <序号 | id前缀 | 名称>\n   或：/switch all <序号 | id前缀 | 名称>",
+		LangTraditionalChinese: "用法：/switch <序號 | id前綴 | 名稱>\n   或：/switch all <序號 | id前綴 | 名稱>",
+		LangJapanese:           "使い方: /switch <番号 | id接頭辞 | 名前>\n   または: /switch all <番号 | id接頭辞 | 名前>",
+		LangSpanish:            "Uso: /switch <número | prefijo_id | nombre>\n   o: /switch all <número | prefijo_id | nombre>",
+	},
 	MsgCommandTimeout: {
 		LangEnglish:            "⏰ Command timed out (60s): `%s`",
 		LangChinese:            "⏰ 命令超时 (60秒): `%s`",
@@ -3157,11 +3181,11 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "Iniciar una nueva sesión, arg: [nombre]",
 	},
 	MsgBuiltinCmdList: {
-		LangEnglish:            "List agent sessions",
-		LangChinese:            "列出 Agent 会话列表",
-		LangTraditionalChinese: "列出 Agent 會話列表",
-		LangJapanese:           "エージェントセッション一覧",
-		LangSpanish:            "Listar sesiones del agente",
+		LangEnglish:            "List agent sessions, args: [all] [page]",
+		LangChinese:            "列出 Agent 会话列表，参数: [all] [页码]",
+		LangTraditionalChinese: "列出 Agent 會話列表，參數: [all] [頁碼]",
+		LangJapanese:           "エージェントセッション一覧、引数: [all] [ページ]",
+		LangSpanish:            "Listar sesiones del agente, args: [all] [página]",
 	},
 	MsgBuiltinCmdSearch: {
 		LangEnglish:            "Search sessions by name or ID, arg: <keyword>",
@@ -3171,11 +3195,11 @@ var messages = map[MsgKey]map[Language]string{
 		LangSpanish:            "Buscar sesiones por nombre o ID, arg: <palabra_clave>",
 	},
 	MsgBuiltinCmdSwitch: {
-		LangEnglish:            "Resume a session by its list number, arg: <number>",
-		LangChinese:            "按列表序号切换会话，参数: <序号>",
-		LangTraditionalChinese: "按列表序號切換會話，參數: <序號>",
-		LangJapanese:           "リスト番号でセッションを切り替え、引数: <番号>",
-		LangSpanish:            "Reanudar sesión por su número en la lista, arg: <número>",
+		LangEnglish:            "Resume a session by its list number, args: [all] <number>",
+		LangChinese:            "按列表序号切换会话，参数: [all] <序号>",
+		LangTraditionalChinese: "按列表序號切換會話，參數: [all] <序號>",
+		LangJapanese:           "リスト番号でセッションを切り替え、引数: [all] <番号>",
+		LangSpanish:            "Reanudar sesión por su número en la lista, args: [all] <número>",
 	},
 	MsgBuiltinCmdDelete: {
 		LangEnglish:            "Delete session(s) by list number, args: <number> | 1,2,3 | 3-7 | 1,3-5,8",

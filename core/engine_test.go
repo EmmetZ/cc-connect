@@ -2345,6 +2345,17 @@ func TestCmdHelp_UsesLegacyTextOnPlatformWithoutCardSupport(t *testing.T) {
 	}
 }
 
+func TestHelpText_IncludesListAllAndSwitchAllUsage(t *testing.T) {
+	e := NewEngine("test", &stubAgent{}, nil, "", LangChinese)
+	help := e.i18n.T(MsgHelp)
+	if !strings.Contains(help, "/list [all] [页码]") {
+		t.Fatalf("help text = %q, want /list [all] [页码]", help)
+	}
+	if !strings.Contains(help, "/switch [all] <序号>") {
+		t.Fatalf("help text = %q, want /switch [all] <序号>", help)
+	}
+}
+
 func TestCmdList_UsesLegacyTextOnPlatformWithoutCardSupport(t *testing.T) {
 	p := &stubPlatformEngine{n: "plain"}
 	sessions := []AgentSessionInfo{{ID: "session-a", Summary: "First session", MessageCount: 3, ModifiedAt: time.Date(2026, 3, 11, 2, 0, 0, 0, time.UTC)}}
@@ -2361,6 +2372,59 @@ func TestCmdList_UsesLegacyTextOnPlatformWithoutCardSupport(t *testing.T) {
 	}
 	if strings.Contains(p.sent[0], "[← 返回]") {
 		t.Fatalf("list text = %q, should not be card fallback text", p.sent[0])
+	}
+}
+
+func TestCmdListAll_IncludesExternalSessions(t *testing.T) {
+	p := &stubPlatformEngine{n: "plain"}
+	sessions := []AgentSessionInfo{
+		{ID: "session-owned", Summary: "Owned session", MessageCount: 3, ModifiedAt: time.Date(2026, 3, 11, 2, 0, 0, 0, time.UTC)},
+		{ID: "session-external", Summary: "External session", MessageCount: 8, ModifiedAt: time.Date(2026, 3, 11, 3, 0, 0, 0, time.UTC)},
+	}
+	e := NewEngine("test", &stubListAgent{sessions: sessions}, []Platform{p}, "", LangEnglish)
+	local := e.sessions.GetOrCreateActive("test:user1")
+	local.SetAgentSessionID("session-owned", "test")
+
+	msg := &Message{SessionKey: "test:user1", Content: "/list all", ReplyCtx: "ctx"}
+	e.handleCommand(p, msg, msg.Content)
+
+	if len(p.sent) != 1 {
+		t.Fatalf("sent messages = %d, want 1", len(p.sent))
+	}
+	got := p.sent[0]
+	if !strings.Contains(got, "Owned session") {
+		t.Fatalf("list all text = %q, want owned session", got)
+	}
+	if !strings.Contains(got, "External session") {
+		t.Fatalf("list all text = %q, want external session", got)
+	}
+	if !strings.Contains(got, "/switch all <number>") {
+		t.Fatalf("list all text = %q, want switch all hint", got)
+	}
+}
+
+func TestCmdListAll_UsesAllPageHint(t *testing.T) {
+	p := &stubPlatformEngine{n: "plain"}
+	var sessions []AgentSessionInfo
+	base := time.Date(2026, 3, 11, 2, 0, 0, 0, time.UTC)
+	for i := 0; i < 21; i++ {
+		sessions = append(sessions, AgentSessionInfo{
+			ID:           fmt.Sprintf("session-%02d", i+1),
+			Summary:      "Session",
+			MessageCount: i + 1,
+			ModifiedAt:   base.Add(time.Duration(i) * time.Minute),
+		})
+	}
+	e := NewEngine("test", &stubListAgent{sessions: sessions}, []Platform{p}, "", LangEnglish)
+
+	msg := &Message{SessionKey: "test:user1", Content: "/list all", ReplyCtx: "ctx"}
+	e.handleCommand(p, msg, msg.Content)
+
+	if len(p.sent) != 1 {
+		t.Fatalf("sent messages = %d, want 1", len(p.sent))
+	}
+	if !strings.Contains(p.sent[0], "/list all <page>") {
+		t.Fatalf("list all text = %q, want list all page hint", p.sent[0])
 	}
 }
 
@@ -4148,6 +4212,42 @@ func TestRenderListCard_MakesEveryVisibleSessionClickable(t *testing.T) {
 	}
 }
 
+func TestHandleCardNav_ListAllAndSwitchAllIncludeExternalSessions(t *testing.T) {
+	p := &stubCardPlatform{stubPlatformEngine: stubPlatformEngine{n: "feishu"}}
+	agent := &stubListAgent{sessions: []AgentSessionInfo{
+		{ID: "session-owned", Summary: "Owned session", MessageCount: 3, ModifiedAt: time.Date(2026, 3, 9, 10, 0, 0, 0, time.UTC)},
+		{ID: "session-external", Summary: "External session", MessageCount: 8, ModifiedAt: time.Date(2026, 3, 9, 11, 0, 0, 0, time.UTC)},
+	}}
+	e := NewEngine("test", agent, []Platform{p}, "", LangEnglish)
+	key := "feishu:user1"
+	local := e.sessions.GetOrCreateActive(key)
+	local.SetAgentSessionID("session-owned", "test")
+
+	card := e.handleCardNav("nav:/list all", key)
+	if card == nil {
+		t.Fatal("expected /list all card")
+	}
+	if got := countCardActionValues(card, "act:/switch all "); got != 2 {
+		t.Fatalf("switch all action count = %d, want 2", got)
+	}
+	if _, ok := findCardAction(card, "act:/switch all 2"); !ok {
+		t.Fatal("expected external session switch action to exist")
+	}
+
+	result := e.handleCardNav("act:/switch all 2", key)
+	if result == nil {
+		t.Fatal("expected result card after switch all action")
+	}
+	if got := countCardActionValues(result, "act:/switch all "); got != 2 {
+		t.Fatalf("result switch all action count = %d, want 2", got)
+	}
+
+	active := e.sessions.GetOrCreateActive(key)
+	if id := active.GetAgentSessionID(); id != "session-external" {
+		t.Fatalf("active session id = %q, want session-external", id)
+	}
+}
+
 func TestRenderDirCard_HistoryRowsUseSelectActions(t *testing.T) {
 	tempDir := t.TempDir()
 	dir1 := filepath.Join(tempDir, "dir1")
@@ -4223,6 +4323,12 @@ func TestRenderHelpCard_DefaultsToSessionTab(t *testing.T) {
 	}
 	if !strings.Contains(text, "**/new**") {
 		t.Fatalf("default help text = %q, want session commands", text)
+	}
+	if !strings.Contains(text, "args: [all] [page]") {
+		t.Fatalf("default help text = %q, want list all args help", text)
+	}
+	if !strings.Contains(text, "args: [all] <number>") {
+		t.Fatalf("default help text = %q, want switch all args help", text)
 	}
 	if strings.Contains(text, "**Session Management**") {
 		t.Fatalf("default help text = %q, should not repeat tab title in body", text)
@@ -8064,14 +8170,11 @@ func TestCmdSwitch_NoArgs_ShowsUsage(t *testing.T) {
 	e.handleCommand(p, msg, msg.Content)
 
 	sent := p.getSent()
-	foundUsage := false
-	for _, s := range sent {
-		if strings.Contains(s, "Usage") || strings.Contains(s, "/switch") {
-			foundUsage = true
-		}
-	}
-	if !foundUsage {
+	if len(sent) == 0 {
 		t.Fatalf("expected usage reply, got %v", sent)
+	}
+	if !strings.Contains(sent[0], "/switch all <number | id_prefix | name>") {
+		t.Fatalf("usage reply = %q, want switch all usage", sent[0])
 	}
 }
 
@@ -8118,6 +8221,40 @@ func TestCmdSwitch_ByIndex_SetsSession(t *testing.T) {
 	session := e.sessions.GetOrCreateActive(key)
 	if id := session.GetAgentSessionID(); id != "sess-bbb" {
 		t.Errorf("expected session ID sess-bbb, got %q", id)
+	}
+}
+
+func TestCmdSwitchAll_ByIndex_SetsExternalSession(t *testing.T) {
+	p := &stubPlatformEngine{n: "test"}
+	agent := &switchableAgent{
+		sessions: []AgentSessionInfo{
+			{ID: "sess-owned", Summary: "Owned session", MessageCount: 5},
+			{ID: "sess-external", Summary: "External session", MessageCount: 3},
+		},
+	}
+	e := NewEngine("test", agent, []Platform{p}, "", LangEnglish)
+
+	key := "test:ch:user1"
+	local := e.sessions.GetOrCreateActive(key)
+	local.SetAgentSessionID("sess-owned", "test")
+
+	msg := &Message{SessionKey: key, Content: "/switch all 2", ReplyCtx: "ctx"}
+	e.handleCommand(p, msg, msg.Content)
+
+	sent := p.getSent()
+	foundSwitch := false
+	for _, s := range sent {
+		if strings.Contains(s, "External session") || strings.Contains(s, "sess-external") {
+			foundSwitch = true
+		}
+	}
+	if !foundSwitch {
+		t.Fatalf("expected switch all success reply referencing external session, got %v", sent)
+	}
+
+	session := e.sessions.GetOrCreateActive(key)
+	if id := session.GetAgentSessionID(); id != "sess-external" {
+		t.Errorf("expected session ID sess-external, got %q", id)
 	}
 }
 

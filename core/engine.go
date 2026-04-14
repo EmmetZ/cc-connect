@@ -3605,6 +3605,61 @@ func filterOwnedSessions(sessions []AgentSessionInfo, known map[string]struct{})
 	return filtered
 }
 
+func parseListScopeArgs(args []string) (includeAll bool, page int) {
+	page = 1
+	if len(args) > 0 && strings.EqualFold(args[0], "all") {
+		includeAll = true
+		args = args[1:]
+	}
+	if len(args) > 0 {
+		if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+			page = n
+		}
+	}
+	return includeAll, page
+}
+
+func parseListScopeString(args string) (includeAll bool, page int) {
+	return parseListScopeArgs(strings.Fields(args))
+}
+
+func parseSwitchScopeArgs(args []string) (includeAll bool, query string) {
+	if len(args) > 0 && strings.EqualFold(args[0], "all") {
+		includeAll = true
+		args = args[1:]
+	}
+	return includeAll, strings.TrimSpace(strings.Join(args, " "))
+}
+
+func parseSwitchScopeString(args string) (includeAll bool, query string) {
+	return parseSwitchScopeArgs(strings.Fields(args))
+}
+
+func visibleAgentSessions(agent Agent, sessions *SessionManager, includeAll bool, ctx context.Context) ([]AgentSessionInfo, error) {
+	agentSessions, err := agent.ListSessions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if includeAll {
+		return agentSessions, nil
+	}
+	return filterOwnedSessions(agentSessions, sessions.KnownAgentSessionIDs()), nil
+}
+
+func (e *Engine) listPageHint(page, totalPages int, includeAll bool) string {
+	if includeAll {
+		return fmt.Sprintf(e.i18n.T(MsgListPageHintAll), page, totalPages)
+	}
+	return fmt.Sprintf(e.i18n.T(MsgListPageHint), page, totalPages)
+}
+
+func (e *Engine) listSwitchHint(includeAll bool) string {
+	if includeAll {
+		return e.i18n.T(MsgListSwitchHintAll)
+	}
+	return e.i18n.T(MsgListSwitchHint)
+}
+
 const listPageSize = 20
 
 // dirCardPageSize is the max directory history rows per card page (Feishu / other card UIs).
@@ -3617,13 +3672,14 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 		return
 	}
 
+	includeAll, page := parseListScopeArgs(args)
+
 	if !supportsCards(p) {
-		agentSessions, err := agent.ListSessions(e.ctx)
+		agentSessions, err := visibleAgentSessions(agent, sessions, includeAll, e.ctx)
 		if err != nil {
 			e.reply(p, msg.ReplyCtx, fmt.Sprintf(e.i18n.T(MsgListError), err))
 			return
 		}
-		agentSessions = filterOwnedSessions(agentSessions, sessions.KnownAgentSessionIDs())
 		if len(agentSessions) == 0 {
 			e.reply(p, msg.ReplyCtx, e.i18n.T(MsgListEmpty))
 			return
@@ -3632,12 +3688,6 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 		total := len(agentSessions)
 		totalPages := (total + listPageSize - 1) / listPageSize
 
-		page := 1
-		if len(args) > 0 {
-			if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
-				page = n
-			}
-		}
 		if page > totalPages {
 			page = totalPages
 		}
@@ -3681,20 +3731,14 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 				marker, i+1, displayName, s.MessageCount, s.ModifiedAt.Format("01-02 15:04")))
 		}
 		if totalPages > 1 {
-			sb.WriteString(fmt.Sprintf(e.i18n.T(MsgListPageHint), page, totalPages))
+			sb.WriteString(e.listPageHint(page, totalPages, includeAll))
 		}
-		sb.WriteString(e.i18n.T(MsgListSwitchHint))
+		sb.WriteString(e.listSwitchHint(includeAll))
 		e.reply(p, msg.ReplyCtx, sb.String())
 		return
 	}
 
-	page := 1
-	if len(args) > 0 {
-		if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
-			page = n
-		}
-	}
-	card, err := e.renderListCard(msg.SessionKey, page)
+	card, err := e.renderListCardWithScope(msg.SessionKey, page, includeAll)
 	if err != nil {
 		e.reply(p, msg.ReplyCtx, err.Error())
 		return
@@ -3703,11 +3747,11 @@ func (e *Engine) cmdList(p Platform, msg *Message, args []string) {
 }
 
 func (e *Engine) cmdSwitch(p Platform, msg *Message, args []string) {
-	if len(args) == 0 {
-		e.reply(p, msg.ReplyCtx, "Usage: /switch <number | id_prefix | name>")
+	includeAll, query := parseSwitchScopeArgs(args)
+	if query == "" {
+		e.reply(p, msg.ReplyCtx, e.i18n.T(MsgSwitchUsage))
 		return
 	}
-	query := strings.TrimSpace(strings.Join(args, " "))
 
 	slog.Info("cmdSwitch: listing agent sessions", "session_key", msg.SessionKey)
 	agent, sessions, interactiveKey, err := e.commandContext(p, msg)
@@ -3715,12 +3759,11 @@ func (e *Engine) cmdSwitch(p Platform, msg *Message, args []string) {
 		e.reply(p, msg.ReplyCtx, e.i18n.Tf(MsgWsResolutionError, err))
 		return
 	}
-	agentSessions, err := agent.ListSessions(e.ctx)
+	agentSessions, err := visibleAgentSessions(agent, sessions, includeAll, e.ctx)
 	if err != nil {
 		e.reply(p, msg.ReplyCtx, e.i18n.Tf(MsgError, err))
 		return
 	}
-	agentSessions = filterOwnedSessions(agentSessions, sessions.KnownAgentSessionIDs())
 
 	matched := e.matchSession(agentSessions, sessions, query)
 	if matched == nil {
@@ -4757,7 +4800,11 @@ func (e *Engine) simpleCard(title, color, content string) *Card {
 
 // renderListCardSafe wraps renderListCard and returns an error card on failure.
 func (e *Engine) renderListCardSafe(sessionKey string, page int) *Card {
-	card, err := e.renderListCard(sessionKey, page)
+	return e.renderListCardSafeWithScope(sessionKey, page, false)
+}
+
+func (e *Engine) renderListCardSafeWithScope(sessionKey string, page int, includeAll bool) *Card {
+	card, err := e.renderListCardWithScope(sessionKey, page, includeAll)
 	if err != nil {
 		agent, _ := e.sessionContextForKey(sessionKey)
 		return e.simpleCard(e.i18n.Tf(MsgCardTitleSessions, agent.Name(), 0), "red", err.Error())
@@ -6775,13 +6822,8 @@ func (e *Engine) handleCardNav(action string, sessionKey string) *Card {
 	case "/status":
 		return e.renderStatusCard(sessionKey, extractUserID(sessionKey))
 	case "/list":
-		page := 1
-		if args != "" {
-			if n, err := strconv.Atoi(args); err == nil && n > 0 {
-				page = n
-			}
-		}
-		return e.renderListCardSafe(sessionKey, page)
+		includeAll, page := parseListScopeString(args)
+		return e.renderListCardSafeWithScope(sessionKey, page, includeAll)
 	case "/dir":
 		page := 1
 		if args != "" {
@@ -6821,7 +6863,8 @@ func (e *Engine) handleCardNav(action string, sessionKey string) *Card {
 	case "/new":
 		return e.renderCurrentCard(sessionKey)
 	case "/switch":
-		return e.renderListCardSafe(sessionKey, 1)
+		includeAll, _ := parseSwitchScopeString(args)
+		return e.renderListCardSafeWithScope(sessionKey, 1, includeAll)
 	case "/delete-mode":
 		if strings.HasPrefix(args, "cancel") {
 			return e.renderListCardSafe(sessionKey, 1)
@@ -6969,16 +7012,16 @@ func (e *Engine) executeCardAction(cmd, args, sessionKey string) {
 		e.executeDeleteModeAction(sessionKey, args)
 
 	case "/switch":
-		if args == "" {
+		includeAll, query := parseSwitchScopeString(args)
+		if query == "" {
 			return
 		}
 		agent, sessions := e.sessionContextForKey(sessionKey)
-		agentSessions, err := agent.ListSessions(e.ctx)
+		agentSessions, err := visibleAgentSessions(agent, sessions, includeAll, e.ctx)
 		if err != nil || len(agentSessions) == 0 {
 			return
 		}
-		agentSessions = filterOwnedSessions(agentSessions, sessions.KnownAgentSessionIDs())
-		matched := e.matchSession(agentSessions, sessions, args)
+		matched := e.matchSession(agentSessions, sessions, query)
 		if matched == nil {
 			return
 		}
@@ -7517,12 +7560,15 @@ func (e *Engine) renderModeCard() *Card {
 }
 
 func (e *Engine) renderListCard(sessionKey string, page int) (*Card, error) {
+	return e.renderListCardWithScope(sessionKey, page, false)
+}
+
+func (e *Engine) renderListCardWithScope(sessionKey string, page int, includeAll bool) (*Card, error) {
 	agent, sessions := e.sessionContextForKey(sessionKey)
-	agentSessions, err := agent.ListSessions(e.ctx)
+	agentSessions, err := visibleAgentSessions(agent, sessions, includeAll, e.ctx)
 	if err != nil {
 		return nil, fmt.Errorf(e.i18n.T(MsgListError), err)
 	}
-	agentSessions = filterOwnedSessions(agentSessions, sessions.KnownAgentSessionIDs())
 	if len(agentSessions) == 0 {
 		return e.simpleCard(e.i18n.Tf(MsgCardTitleSessions, agent.Name(), 0), "turquoise", e.i18n.T(MsgListEmpty)), nil
 	}
@@ -7574,26 +7620,36 @@ func (e *Engine) renderListCard(sessionKey string, page int) (*Card, error) {
 		if s.ID == activeAgentID {
 			btnType = "primary"
 		}
+		switchAction := fmt.Sprintf("act:/switch %d", i+1)
+		if includeAll {
+			switchAction = fmt.Sprintf("act:/switch all %d", i+1)
+		}
 		cb.ListItemBtn(
 			e.i18n.Tf(MsgListItem, marker, i+1, displayName, s.MessageCount, s.ModifiedAt.Format("01-02 15:04")),
 			fmt.Sprintf("#%d", i+1),
 			btnType,
-			fmt.Sprintf("act:/switch %d", i+1),
+			switchAction,
 		)
 	}
 
 	var navBtns []CardButton
+	prevAction := fmt.Sprintf("nav:/list %d", page-1)
+	nextAction := fmt.Sprintf("nav:/list %d", page+1)
+	if includeAll {
+		prevAction = fmt.Sprintf("nav:/list all %d", page-1)
+		nextAction = fmt.Sprintf("nav:/list all %d", page+1)
+	}
 	if page > 1 {
-		navBtns = append(navBtns, e.cardPrevButton(fmt.Sprintf("nav:/list %d", page-1)))
+		navBtns = append(navBtns, e.cardPrevButton(prevAction))
 	}
 	navBtns = append(navBtns, e.cardBackButton())
 	if page < totalPages {
-		navBtns = append(navBtns, e.cardNextButton(fmt.Sprintf("nav:/list %d", page+1)))
+		navBtns = append(navBtns, e.cardNextButton(nextAction))
 	}
 	cb.Buttons(navBtns...)
 
 	if totalPages > 1 {
-		cb.Note(fmt.Sprintf(e.i18n.T(MsgListPageHint), page, totalPages))
+		cb.Note(e.listPageHint(page, totalPages, includeAll))
 	}
 
 	return cb.Build(), nil
