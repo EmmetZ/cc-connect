@@ -21,13 +21,14 @@ var _ core.SessionObserver = (*Agent)(nil)
 
 var observePollInterval = 300 * time.Millisecond
 
+const rolloutTailScanBlockSize int64 = 64 * 1024
+
 type observedRolloutSession struct {
 	path      string
 	sessionID string
 	events    chan core.Event
 	ctx       context.Context
 	cancel    context.CancelFunc
-	toolCalls map[string]string
 	wg        sync.WaitGroup
 	closeOnce sync.Once
 }
@@ -67,7 +68,6 @@ func newObservedRolloutSession(parent context.Context, path, sessionID string) (
 		events:    make(chan core.Event, 64),
 		ctx:       ctx,
 		cancel:    cancel,
-		toolCalls: make(map[string]string),
 	}
 
 	s.wg.Add(1)
@@ -174,17 +174,6 @@ func (s *observedRolloutSession) handleParsed(parsed *parsedRolloutEvent) bool {
 		return false
 	}
 
-	if parsed.CallID != "" && parsed.ToolName != "" {
-		s.toolCalls[parsed.CallID] = parsed.ToolName
-	}
-
-	if parsed.Event.Type == core.EventToolResult && parsed.CallID != "" {
-		if parsed.Event.ToolName == "" {
-			parsed.Event.ToolName = s.toolCalls[parsed.CallID]
-		}
-		delete(s.toolCalls, parsed.CallID)
-	}
-
 	select {
 	case <-s.ctx.Done():
 		return true
@@ -200,41 +189,80 @@ func rolloutAlreadyComplete(path string) (bool, error) {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 0, 128*1024), 2*1024*1024)
-
-	complete := false
-	for scanner.Scan() {
-		line := bytes.TrimSpace(scanner.Bytes())
-		if len(line) == 0 {
-			continue
-		}
-
-		var env rolloutEnvelope
-		if err := json.Unmarshal(line, &env); err != nil {
-			continue
-		}
-		if env.Type != "event_msg" {
-			continue
-		}
-
-		var payload struct {
-			Type string `json:"type"`
-		}
-		if err := json.Unmarshal(env.Payload, &payload); err != nil {
-			continue
-		}
-
-		switch payload.Type {
-		case "task_started":
-			complete = false
-		case "task_complete":
-			complete = true
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
+	info, err := f.Stat()
+	if err != nil {
 		return false, err
 	}
-	return complete, nil
+
+	offset := info.Size()
+	tail := make([]byte, 0, rolloutTailScanBlockSize)
+	for offset > 0 {
+		readSize := rolloutTailScanBlockSize
+		if readSize > offset {
+			readSize = offset
+		}
+		offset -= readSize
+
+		buf := make([]byte, readSize)
+		if _, err := f.ReadAt(buf, offset); err != nil {
+			return false, err
+		}
+
+		chunk := make([]byte, 0, len(buf)+len(tail))
+		chunk = append(chunk, buf...)
+		chunk = append(chunk, tail...)
+
+		lines := bytes.Split(chunk, []byte{'\n'})
+		if offset > 0 {
+			tail = append(tail[:0], lines[0]...)
+			lines = lines[1:]
+		} else {
+			tail = tail[:0]
+		}
+
+		for i := len(lines) - 1; i >= 0; i-- {
+			if complete, decided := rolloutCompletionState(lines[i]); decided {
+				return complete, nil
+			}
+		}
+	}
+
+	if len(tail) > 0 {
+		if complete, decided := rolloutCompletionState(tail); decided {
+			return complete, nil
+		}
+	}
+
+	return false, nil
+}
+
+func rolloutCompletionState(line []byte) (complete bool, decided bool) {
+	line = bytes.TrimSpace(line)
+	if len(line) == 0 {
+		return false, false
+	}
+
+	var env rolloutEnvelope
+	if err := json.Unmarshal(line, &env); err != nil {
+		return false, false
+	}
+	if env.Type != "event_msg" {
+		return false, false
+	}
+
+	var payload struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(env.Payload, &payload); err != nil {
+		return false, false
+	}
+
+	switch payload.Type {
+	case "task_complete":
+		return true, true
+	case "task_started":
+		return false, true
+	default:
+		return false, false
+	}
 }
